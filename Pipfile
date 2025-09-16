@@ -1,0 +1,20 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+pytest = "*"
+pytest-bdd = "*"
+parse = "*"
+requests = "*"
+python-dotenv = "*"
+selenium = "*"
+webdriver-manager = "*"
+pytest-xdist = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.13"
+python_full_version = "3.13.5"
