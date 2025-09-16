@@ -1,14 +1,33 @@
 # BDD Test Automation Framework
 
-A Behavior-Driven Development (BDD) test automation framework using Python, Selenium WebDriver, and pytest-bdd. This project demonstrates automated web testing with DuckDuckGo search functionality and includes automatic test result reporting to Jira.
+A Behavior-Driven Development (BDD) test automation framework using Python, Selenium WebDriver, and pytest-bdd. This project demonstrates three different types of automated testing: web browser automation, unit testing with business logic, and REST API testing, all with automatic test result reporting to Jira.
 
 ## What This Project Does
 
-### Automated Web Testing
+### Three Types of Automated Testing
+
+#### 1. Web Browser Testing
 - **Web Browser Automation**: Automatically opens web browsers and performs user interactions like searching, clicking, and verifying content
 - **Cross-Browser Support**: Supports Chrome, Firefox, and Safari browsers with easy configuration switching
 - **DuckDuckGo Search Tests**: Includes pre-built test scenarios that search for different terms and verify results
-- **BDD Approach**: Tests are written in plain English using Gherkin syntax, making them readable by both technical and non-technical team members
+- **Real User Interactions**: Simulates actual user behavior with mouse clicks, keyboard input, and page navigation
+
+#### 2. Unit Testing with Business Logic
+- **Cucumber Basket Tests**: Demonstrates BDD testing of business logic with a simple cucumber basket model
+- **Mathematical Operations**: Tests adding and removing items with validation of business rules
+- **State Management**: Verifies object state changes and boundary conditions (empty/full baskets)
+- **Error Handling**: Tests proper exception handling for invalid operations
+
+#### 3. REST API Testing
+- **DuckDuckGo API Integration**: Tests REST API endpoints without browser automation
+- **HTTP Response Validation**: Verifies status codes, response structure, and data integrity
+- **Multiple Test Data Sets**: Includes examples for different categories (animals, fruits)
+- **JSON Response Parsing**: Validates API response format and required fields
+
+### Common Features
+- **BDD Approach**: All tests are written in plain English using Gherkin syntax, making them readable by both technical and non-technical team members
+- **Parameterized Testing**: Uses scenario outlines with example tables for data-driven testing
+- **Comprehensive Logging**: Detailed logging for debugging and test execution tracking
 
 ### Jira Integration
 - **Automatic Reporting**: Test results are automatically sent to your Jira project after each test run
@@ -75,9 +94,13 @@ browser_options = Options()
 
 ### 4. Understanding Test Scenarios
 
-The tests are defined in `tests/features/web.feature` using simple English:
+The framework includes three different types of test scenarios, each demonstrating different testing approaches:
 
-#### Basic Search Tests
+#### A. Web Browser Tests (`tests/features/web.feature`)
+
+These tests demonstrate automated web browser interactions:
+
+**Basic Search Tests**:
 ```gherkin
 Scenario Outline: Basic DuckDuckGo Search
   When the user searches for "<phrase>"
@@ -90,30 +113,107 @@ Examples:
 | judge  |
 ```
 
-#### Customizing Test Data
-You can modify the test data by editing the Examples table:
-- **Add new search terms**: Add more rows to the `| phrase |` column
-- **Change search terms**: Replace existing terms with your preferred search queries
-
-#### Long Text Search Tests
+**Long Text Search Tests**:
 ```gherkin
 Scenario Outline: Lengthy DuckDuckGo search
   When user searches for the phrase:
   """
-  Your long search text here...
+  When in the course of human events, it becomes necessary for one people
+  to dissolve the political bands which have connected them with another...
   """
   Then one of the results contains "<expected_text>"
+
+Examples:
+| expected_text |
+| people        |
+| human events  |
 ```
+
+#### B. Unit/Business Logic Tests (`tests/features/cucumbers.feature`)
+
+These tests demonstrate BDD testing of business logic without external dependencies:
+
+**Adding Cucumbers**:
+```gherkin
+Scenario Outline: Add cucumbers to a basket
+  Given the basket has "<initial>" cucumbers
+  When "<count>" cucumbers are added to the basket
+  Then the basket contains "<total>" cucumbers
+
+Examples: Amounts of cucumbers
+| initial | count | total |
+| 2       | 4     | 6     |
+| 3       | 5     | 8     |
+| 0       | 7     | 7     |
+```
+
+**Removing Cucumbers**:
+```gherkin
+Scenario: Remove cucumbers from a basket
+  Given the basket has "8" cucumbers
+  When "3" cucumbers are removed from the basket
+  Then the basket contains "5" cucumbers
+```
+
+#### C. REST API Tests (`tests/features/duckduckgo_api.feature`)
+
+These tests demonstrate API testing without browser automation:
+
+**API Response Validation**:
+```gherkin
+Scenario Outline: Basic DuckDuckGo API query
+  Given the DuckDuckGo API is queried with "<phrase>"
+  Then the response status code is "<status_code>"
+  And the response contains results for "<phrase>"
+  And the phrase "<phrase>" appears somewhere in the response
+
+Examples: Animals
+| phrase | status_code |
+| cat    | 202         |
+| dog    | 202         |
+| panda  | 202         |
+
+Examples: Fruits
+| phrase | status_code |
+| apple  | 202         |
+| orange | 202         |
+| banana | 202         |
+```
+
+#### Customizing Test Data
+
+You can modify any of the test scenarios by editing the Examples tables:
+
+**Web Tests**: 
+- Add new search terms to test different queries
+- Modify expected results for verification
+
+**Cucumber Tests**: 
+- Change initial counts, add/remove amounts, and expected totals
+- Add new scenarios for edge cases (full basket, empty basket)
+
+**API Tests**: 
+- Add new search phrases and categories
+- Test different API parameters and response validation
 
 ### 5. Running Tests
 
-#### Run All Tests
+#### Run All Tests (All Types)
 ```bash
-pipenv run python -m pytest tests/step_defs/test_web.py -v
+# Run all test types together
+pipenv run python -m pytest tests/step_defs/ -v
+
+# Run all tests in parallel for faster execution
+pipenv run python -m pytest tests/step_defs/ -v -n auto
 ```
 
-#### Run Specific Test Scenarios
+#### Run Specific Test Types
+
+**Web Browser Tests**:
 ```bash
+# Run all web tests
+pipenv run python -m pytest tests/step_defs/test_web.py -v
+
 # Run only basic search tests
 pipenv run python -m pytest tests/step_defs/test_web.py::test_basic_duckduckgo_search -v
 
@@ -121,9 +221,31 @@ pipenv run python -m pytest tests/step_defs/test_web.py::test_basic_duckduckgo_s
 pipenv run python -m pytest tests/step_defs/test_web.py::test_lengthy_duckduckgo_search -v
 ```
 
-#### Run Tests in Parallel (Faster)
+**Cucumber Basket Tests**:
 ```bash
-pipenv run python -m pytest tests/step_defs/test_web.py -v -n auto
+# Run all cucumber basket tests
+pipenv run python -m pytest tests/step_defs/test_cucumbers_steps.py -v
+
+# Run specific cucumber scenarios
+pipenv run python -m pytest tests/step_defs/test_cucumbers_steps.py::test_add_cucumbers_to_a_basket -v
+pipenv run python -m pytest tests/step_defs/test_cucumbers_steps.py::test_remove_cucumbers_from_a_basket -v
+```
+
+**DuckDuckGo API Tests**:
+```bash
+# Run all API tests
+pipenv run python -m pytest tests/step_defs/test_duckduckgo_steps.py -v
+
+# Run specific API test scenarios
+pipenv run python -m pytest tests/step_defs/test_duckduckgo_steps.py::test_basic_duckduckgo_api_query -v
+```
+
+#### Run Tests by Feature File
+```bash
+# Run tests for specific feature files
+pipenv run python -m pytest --gherkin-terminal-reporter -v tests/step_defs/test_web.py
+pipenv run python -m pytest --gherkin-terminal-reporter -v tests/step_defs/test_cucumbers_steps.py
+pipenv run python -m pytest --gherkin-terminal-reporter -v tests/step_defs/test_duckduckgo_steps.py
 ```
 
 ### 6. Understanding Test Results
@@ -143,18 +265,36 @@ pipenv run python -m pytest tests/step_defs/test_web.py -v -n auto
 ```
 BDD-course/
 ├── tests/
-│   ├── features/
-│   │   └── web.feature          # Test scenarios in plain English
-│   ├── step_defs/
-│   │   └── test_web.py          # Test implementation code
-│   ├── browserconfig.py         # Browser configuration
+│   ├── features/                # BDD feature files (test scenarios in plain English)
+│   │   ├── web.feature          # Web browser automation tests
+│   │   ├── cucumbers.feature    # Unit/business logic tests
+│   │   └── duckduckgo_api.feature # REST API tests
+│   ├── step_defs/               # Test implementation code
+│   │   ├── __init__.py
+│   │   ├── test_web.py          # Web browser test steps
+│   │   ├── test_cucumbers_steps.py # Cucumber basket test steps
+│   │   └── test_duckduckgo_steps.py # API test steps
+│   ├── __init__.py
+│   ├── browserconfig.py         # Browser configuration for web tests
 │   ├── conftest.py             # Test configuration and fixtures
-│   └── jira_reporter.py        # Jira integration
+│   └── jira_reporter.py        # Jira integration for test reporting
+├── cucumbers.py                # CucumberBasket class (business logic)
 ├── .env.example                # Example environment configuration
+├── .env                        # Your actual environment variables (not in git)
 ├── .gitignore                  # Git ignore rules
 ├── Pipfile                     # Python dependencies
+├── Pipfile.lock               # Locked dependency versions
+├── LICENSE                     # MIT License
 └── README.md                   # This file
 ```
+
+### Test Types Overview
+
+| Test Type | Feature File | Step Definition | Purpose |
+|-----------|-------------|----------------|---------|
+| **Web Browser** | `web.feature` | `test_web.py` | Automated browser interactions with DuckDuckGo search |
+| **Unit/Business Logic** | `cucumbers.feature` | `test_cucumbers_steps.py` | Testing business logic with CucumberBasket class |
+| **REST API** | `duckduckgo_api.feature` | `test_duckduckgo_steps.py` | API testing without browser automation |
 
 ## Troubleshooting
 
