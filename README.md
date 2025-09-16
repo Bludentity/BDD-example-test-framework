@@ -17,6 +17,7 @@ A Behavior-Driven Development (BDD) test automation framework using Python, Sele
 - **Mathematical Operations**: Tests adding and removing items with validation of business rules
 - **State Management**: Verifies object state changes and boundary conditions (empty/full baskets)
 - **Error Handling**: Tests proper exception handling for invalid operations
+- **Configurable Capacity**: Basket maximum capacity is configurable via `basketconfig.py` (default: 20 cucumbers)
 
 #### 3. REST API Testing
 - **DuckDuckGo API Integration**: Tests REST API endpoints without browser automation
@@ -91,6 +92,20 @@ browser_options = Options()
 **Browser Options**:
 - **Headless Mode**: Uncomment `browser_options.add_argument("--headless")` to run tests without opening browser windows
 - **Browser Choice**: Change `select_browser` to "Firefox" or "Safari" to use different browsers
+
+### 3b. Configure Cucumber Basket Settings
+
+Edit `tests/basketconfig.py` to customize the cucumber basket capacity:
+
+```python
+# Set the maximum capacity for cucumber baskets
+basket_capacity = 20
+```
+
+**Basket Configuration Options**:
+- **Capacity Limit**: Change `basket_capacity` to set the maximum number of cucumbers a basket can hold
+- **Test Impact**: Modifying capacity affects validation tests that check for "basket full" conditions
+- **Business Rules**: Higher capacity allows more cucumbers but may change test scenarios
 
 ### 4. Understanding Test Scenarios
 
@@ -191,6 +206,8 @@ You can modify any of the test scenarios by editing the Examples tables:
 **Cucumber Tests**: 
 - Change initial counts, add/remove amounts, and expected totals
 - Add new scenarios for edge cases (full basket, empty basket)
+- Modify `basket_capacity` in `tests/basketconfig.py` to test different capacity limits
+- Create scenarios that test capacity validation (e.g., trying to add too many cucumbers)
 
 **API Tests**: 
 - Add new search phrases and categories
@@ -275,6 +292,7 @@ BDD-course/
 │   │   ├── test_cucumbers_steps.py # Cucumber basket test steps
 │   │   └── test_duckduckgo_steps.py # API test steps
 │   ├── __init__.py
+│   ├── basketconfig.py          # Cucumber basket configuration (capacity settings)
 │   ├── browserconfig.py         # Browser configuration for web tests
 │   ├── conftest.py             # Test configuration and fixtures
 │   └── jira_reporter.py        # Jira integration for test reporting

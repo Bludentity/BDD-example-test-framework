@@ -4,9 +4,11 @@ Cucumbers can be added to the basket and removed from it.
 The basket has a limited capacity.
 """
 
+from tests.basketconfig import basket_capacity
+
 class CucumberBasket:
 
-    def __init__(self, initial_count=0, max_count=10):
+    def __init__(self, initial_count=0, max_count=basket_capacity):
         if initial_count < 0:
             raise ValueError("Initial count cannot be negative")
         if max_count < 0:

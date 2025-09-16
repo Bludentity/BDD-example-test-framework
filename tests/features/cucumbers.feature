@@ -16,7 +16,13 @@ Feature: Cucumber basket
     | 0       | 7     | 7     |
 
 
-  Scenario: Remove cucumbers from a basket
-    Given the basket has "8" cucumbers
-    When "3" cucumbers are removed from the basket
-    Then the basket contains "5" cucumbers
+  Scenario Outline: Remove cucumbers from a basket
+    Given the basket has "<initial>" cucumbers
+    When "<count>" cucumbers are removed from the basket
+    Then the basket contains "<total>" cucumbers
+
+    Examples:
+    | initial | count | total |
+    | 8       | 3     | 5     |
+    | 13      | 4     | 9     |
+    | 10      | 10    | 0     |
