@@ -2,6 +2,8 @@
 Pytest configuration and Jira reporting.
 """
 import os
+import tempfile
+import shutil
 import pytest
 import logging
 from pathlib import Path
@@ -13,20 +15,34 @@ from tests.browserconfig import browser_options, select_browser
 @pytest.fixture
 def browser():
     """Set up and tear down the browser for web tests."""
-    if select_browser == "Chrome":
-        driver = webdriver.Chrome(options=browser_options)
-    elif select_browser == "Firefox":
-        driver = webdriver.Firefox(options=browser_options)
-    elif select_browser == "Safari":
-        driver = webdriver.Safari(options=browser_options)
-    else:
-        raise ValueError(f"Unsupported browser: {select_browser}")
+    temp_dir = tempfile.mkdtemp()
+    
+    try:
+        if select_browser == "Chrome":
+            # Create a copy of the options to avoid modifying the global one
+            chrome_options = browser_options
+            chrome_options.add_argument(f"--user-data-dir={temp_dir}")
+            chrome_options.add_argument("--no-first-run")
+            chrome_options.add_argument("--no-default-browser-check")
+            driver = webdriver.Chrome(options=chrome_options)
+        elif select_browser == "Firefox":
+            driver = webdriver.Firefox(options=browser_options)
+        elif select_browser == "Safari":
+            driver = webdriver.Safari(options=browser_options)
+        else:
+            raise ValueError(f"Unsupported browser: {select_browser}")
 
-    driver.implicitly_wait(10)
-    driver.maximize_window()
+        driver.implicitly_wait(10)
+        driver.maximize_window()
 
-    yield driver
-    driver.quit()
+        yield driver
+        driver.quit()
+    finally:
+        # Clean up the temporary directory
+        try:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+        except Exception as e:
+            logging.warning(f"Failed to clean up temporary directory {temp_dir}: {e}")
 
 
 # Load environment variables from .env file
