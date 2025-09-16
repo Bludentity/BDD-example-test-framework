@@ -215,7 +215,18 @@ You can modify any of the test scenarios by editing the Examples tables:
 
 ### 5. Running Tests
 
-#### Run All Tests (All Types)
+#### Option 1: Run Tests in GitHub Actions
+
+You can run tests directly in GitHub Actions:
+
+1. Go to the "Actions" tab in your GitHub repository
+2. Select "Run BDD Tests" from the left sidebar
+3. Click the "Run workflow" button
+4. Click the green "Run workflow" button in the popup
+
+This will run all tests in a fresh GitHub-hosted environment and show you the results.
+
+#### Option 2: Run All Tests Locally (All Types)
 ```bash
 # Run all test types together
 pipenv run python -m pytest tests/step_defs/ -v
