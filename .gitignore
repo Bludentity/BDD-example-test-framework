@@ -48,6 +48,9 @@ Pipfile.lock
 
 # Environments
 env/
+
+# Local development and tooling
+.zencoder/
 venv/
 ENV/
 env.bak/
