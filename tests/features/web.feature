@@ -15,7 +15,7 @@ Feature: DuckDuckGo Search
       | phrase |
       | panda  |
       | python |
-      | judge  |
+      | alvin  |
 
 
    Scenario Outline: Lengthy DuckDuckGo search
@@ -32,5 +32,5 @@ Feature: DuckDuckGo Search
 
      Examples:
      | expected_text |
-     | people        |
+     | Independence  |
      | human events  |
