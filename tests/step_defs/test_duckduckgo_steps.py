@@ -1,7 +1,8 @@
+import logging
+
 import pytest
 import requests
 from pytest_bdd import scenarios, given, then, parsers
-import  logging
 
 # Constants
 DUCKDUCKGO_API = 'https://api.duckduckgo.com/'

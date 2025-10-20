@@ -8,7 +8,7 @@ A Behavior-Driven Development (BDD) test automation framework using Python, Sele
 
 #### 1. Web Browser Testing
 - **Web Browser Automation**: Automatically opens web browsers and performs user interactions like searching, clicking, and verifying content
-- **Cross-Browser Support**: Supports Chrome, Firefox, and Safari browsers with easy configuration switching
+- **Cross-Browser Support**: Supports Chrome, Firefox, and Edge browsers with easy configuration switching
 - **DuckDuckGo Search Tests**: Includes pre-built test scenarios that search for different terms and verify results
 - **Real User Interactions**: Simulates actual user behavior with mouse clicks, keyboard input, and page navigation
 
@@ -59,7 +59,7 @@ pipenv shell
    cp .env.example .env
    ```
 
-2. Edit the `.env` file with your Jira credentials:
+2. Edit the `.env` file with your Jira credentials *and optional browser settings*:
    ```
    JIRA_EMAIL=your-email@company.com
    JIRA_TOKEN=your-jira-api-token
@@ -80,18 +80,17 @@ pipenv shell
 Edit `tests/browserconfig.py` to customize your browser preferences:
 
 ```python
-# Choose your browser: "Chrome", "Firefox", or "Safari"
-select_browser = "Chrome"
+# Controlled via environment variable BROWSER
+# Supported values: "chrome", "firefox", "edge"
+from tests.browserconfig import select_browser, browser_options
 
-# Browser options
-browser_options = Options()
-# Uncomment the next line to run tests without opening browser window
-# browser_options.add_argument("--headless")
+browser_name = select_browser()
+options = browser_options(browser_name)
 ```
 
 **Browser Options**:
-- **Headless Mode**: Uncomment `browser_options.add_argument("--headless")` to run tests without opening browser windows
-- **Browser Choice**: Change `select_browser` to "Firefox" or "Safari" to use different browsers
+- **Headless Mode**: Controlled via the `HEADLESS` environment variable (`true`/`false`)
+- **Browser Choice**: Set the `BROWSER` environment variable to `chrome`, `firefox`, or `edge`
 
 ### 3b. Configure Cucumber Basket Settings
 
@@ -233,6 +232,9 @@ pipenv run python -m pytest tests/step_defs/ -v
 
 # Run all tests in parallel for faster execution
 pipenv run python -m pytest tests/step_defs/ -v -n auto
+
+# Run a single feature by tag (example)
+pipenv run python -m pytest tests/step_defs/test_web.py -k "duckduckgo"
 ```
 
 #### Run Specific Test Types

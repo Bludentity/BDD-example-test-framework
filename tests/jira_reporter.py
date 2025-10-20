@@ -1,8 +1,7 @@
 """
-Jira test reporting module.
+Jira test reporting module for BDD test results.
 """
 import os
-import json
 import requests
 from datetime import datetime
 from pathlib import Path
@@ -38,14 +37,21 @@ class JiraReporter:
         failed = sum(1 for test in test_results if test['status'] == 'FAIL')
         total = len(test_results)
         
+        # Get browser information from test results if available
+        browser_info = "Unknown"
+        for test in test_results:
+            if 'metadata' in test and 'browser' in test['metadata']:
+                browser_info = test['metadata']['browser']
+                break
+        
         # Create an issue to track the test execution
         issue_data = {
             "fields": {
                 "project": {
                     "key": self.project_key
                 },
-                "summary": f"Test Execution - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-                "description": self._format_test_results_description(test_results, passed, failed, total),
+                "summary": f"Test Execution - {browser_info} - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                "description": self._format_test_results_description(test_results, passed, failed, total, browser_info),
                 "issuetype": {
                     "name": "Task"  # You can change this to another issue type that better suits you
                 },
@@ -75,22 +81,24 @@ class JiraReporter:
                 print(f"Response: {e.response.text}")
             return None
     
-    def _format_test_results_description(self, test_results, passed, failed, total):
-        """Format test results into a description."""
-        status_emoji = "✅" if failed == 0 else "❌"
-        description = f"{status_emoji} **Test Execution Summary**\n\n"
-        description += f"* Total Tests: {total}\n"
-        description += f"* Passed: {passed}\n"
-        description += f"* Failed: {failed}\n"
-        description += f"* Success Rate: {(passed/total*100):.1f}%\n\n"
+    def _format_test_results_description(self, test_results, passed, failed, total, browser_info):
+        """Format test results into a human-readable description."""
+        summary = (
+            f"*Test Execution Summary*\n"
+            f"* Browser: {browser_info}\n"
+            f"* Total Tests: {total}\n"
+            f"* Passed: {passed}\n"
+            f"* Failed: {failed}\n"
+            f"* Pass Rate: {passed/total*100:.1f}%"
+        )
         
         if failed > 0:
-            description += "**Failed Tests:**\n"
+            summary += "\n\n**Failed Tests:**\n"
             for test in test_results:
                 if test['status'] == 'FAIL':
-                    description += f"* {test['name']}\n"
+                    summary += f"* {test['name']}\n"
         
-        return description
+        return summary
     
     def _add_test_results_comment(self, issue_key, test_results):
         """Add detailed test results as a comment."""
@@ -295,18 +303,60 @@ class JiraReporter:
         
         return '\n\n'.join(verbose_content) if verbose_content else ""
     
+    def attach_file(self, issue_key, file_path, filename=None):
+        """Attach a file to a Jira issue.
+
+        Args:
+            issue_key (str): The Jira issue key
+            file_path (str): Path to the file to attach
+            filename (str, optional): Name for the attachment. If None, uses the file's basename.
+
+        Returns:
+            bool: True if attachment was successful, False otherwise
+        """
+        if not filename:
+            filename = os.path.basename(file_path)
+
+        try:
+            url = f"{self.server}/rest/api/2/issue/{issue_key}/attachments"
+            with open(file_path, 'rb') as f:
+                files = {
+                    'file': (filename, f, 'application/octet-stream')
+                }
+                headers = {
+                    'X-Atlassian-Token': 'no-check'
+                }
+                response = requests.post(
+                    url,
+                    files=files,
+                    auth=(self.email, self.token),
+                    headers=headers
+                )
+                response.raise_for_status()
+                print(f"Successfully attached {filename} to Jira issue {issue_key}")
+                return True
+        except FileNotFoundError:
+            print(f"File not found: {file_path}")
+            return False
+        except Exception as e:
+            print(f"Failed to attach file to Jira issue: {str(e)}")
+            if hasattr(e, 'response') and e.response is not None:
+                print(f"Response status: {e.response.status_code}")
+                print(f"Response text: {e.response.text}")
+            return False
+
     def _sanitize_text(self, text):
         """Sanitize text to avoid issues with Jira API."""
         if not text:
             return ""
-        
+
         # Convert to string if not already
         text = str(text)
-        
+
         # Remove or replace problematic characters
         # Replace null bytes and other control characters
         text = text.replace('\x00', '')
-        
+
         # Replace other control characters except newlines and tabs
         sanitized = ""
         for char in text:
@@ -314,29 +364,23 @@ class JiraReporter:
                 sanitized += ' '  # Replace with space
             else:
                 sanitized += char
-        
+
         return sanitized
 
 
-def report_test_results(test_results):
+def report_test_results(test_results, browser_info=None):
     """
     Report test results to Jira.
-
+    
     Args:
         test_results (list): List of test result dictionaries. Each dictionary should contain:
             - name (str): Name of the test
             - status (str): Test status ('PASS', 'FAIL', etc.)
             - comment (str, optional): Additional test details
-
+        browser_info (str, optional): Information about the browser used for testing
+    
     Returns:
         dict: The created test execution data from Jira, or None if an error occurred
-
-    Example:
-        >>> results = [
-        ...     {'name': 'test_feature', 'status': 'PASS', 'comment': 'Test passed'},
-        ...     {'name': 'another_test', 'status': 'FAIL', 'comment': 'Assertion failed'}
-        ... ]
-        >>> report_test_results(results)
     """
     if not test_results:
         print("No test results to report")
