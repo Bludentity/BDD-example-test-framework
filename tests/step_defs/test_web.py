@@ -127,25 +127,31 @@ def search_for_phrase(search_context, phrase):
         print(f"Page source: {browser.page_source[:1000]}...")
         raise
 
-@when('user searches for the phrase:')
-def search_for_multiline_phrase(search_context, docstring):
-    """Perform a search for a multiline phrase (docstring)."""
-    print(f"\nSearching for multiline phrase (length: {len(docstring)} chars)")
-    print(f"First 100 chars: {docstring[:100]}...")
+@when('the user searches for the lengthy phrase')
+def search_for_lengthy_phrase(search_context):
+    """Perform a search for the lengthy phrase."""
+    search_text = """When in the course of human events, it becomes necessary for one people
+to dissolve the political bands which have connected them with another,
+and to assume among the powers of the earth, the separate and equal station
+to which the Laws of Nature and of Nature's God entitle them, a decent respect
+to the opinions of mankind requires that they should declare the causes
+which impel them to the separation."""
+    print(f"\nSearching for lengthy phrase (length: {len(search_text)} chars)")
+    print(f"First 100 chars: {search_text[:100]}...")
     browser = search_context['browser']
 
     try:
-        perform_search(browser, docstring, search_context)
-        print("Multiline search performed successfully")
+        perform_search(browser, search_text, search_context)
+        print("Lengthy search performed successfully")
     except Exception as e:
-        error_screenshot = os.path.join(SCREENSHOT_DIR, f"multiline_search_error_{int(time.time())}.png")
+        error_screenshot = os.path.join(SCREENSHOT_DIR, f"lengthy_search_error_{int(time.time())}.png")
         try:
             browser.save_screenshot(error_screenshot)
             print(f"Screenshot saved to {error_screenshot}")
         except Exception as se:
             print(f"Failed to save screenshot: {se}")
 
-        print(f"Multiline search failed: {str(e)}")
+        print(f"Lengthy search failed: {str(e)}")
         print(f"Current URL: {browser.current_url}")
         print(f"Page source: {browser.page_source[:1000]}...")
         raise
