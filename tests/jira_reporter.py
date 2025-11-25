@@ -7,7 +7,6 @@ from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
 env_path = Path(__file__).parent.parent / '.env'
 load_dotenv(dotenv_path=env_path)
 
@@ -32,19 +31,16 @@ class JiraReporter:
     
     def create_test_execution(self, test_results):
         """Create a test execution issue in Jira using standard REST API."""
-        # Create a summary of test results
         passed = sum(1 for test in test_results if test['status'] == 'PASS')
         failed = sum(1 for test in test_results if test['status'] == 'FAIL')
         total = len(test_results)
         
-        # Get browser information from test results if available
         browser_info = "Unknown"
         for test in test_results:
             if 'metadata' in test and 'browser' in test['metadata']:
                 browser_info = test['metadata']['browser']
                 break
         
-        # Create an issue to track the test execution
         issue_data = {
             "fields": {
                 "project": {
@@ -53,13 +49,12 @@ class JiraReporter:
                 "summary": f"Test Execution - {browser_info} - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
                 "description": self._format_test_results_description(test_results, passed, failed, total, browser_info),
                 "issuetype": {
-                    "name": "Task"  # You can change this to another issue type that better suits you
+                    "name": "Task"
                 },
-                "labels": ["automated-test", "bdd-test"] # You can edit or add more labels if needed
+                "labels": ["automated-test", "bdd-test"]
             }
         }
         
-        # Send request to create issue
         try:
             url = f"{self.server}/rest/api/2/issue"
             response = requests.post(
@@ -70,10 +65,9 @@ class JiraReporter:
             )
             response.raise_for_status()
             result = response.json()
-            
-            # Add a comment with detailed test results
+
             self._add_test_results_comment(result['key'], test_results)
-            
+
             return result
         except Exception as e:
             print(f"Failed to report to Jira: {str(e)}")
@@ -107,24 +101,20 @@ class JiraReporter:
             
             for test in test_results:
                 status_symbol = "(/) " if test['status'] == 'PASS' else "(x) "
-                # Sanitize test name to avoid special characters
                 test_name = self._sanitize_text(test['name'])
                 comment_body += f"{status_symbol}*{test_name}* - {test['status']}\n"
                 
                 if test.get('comment'):
                     comment_body += f"Duration: {test.get('duration', 0):.2f}s\n"
                 
-                # Add detailed failure information for failed tests
                 if test['status'] == 'FAIL' and test.get('failure_details'):
                     failure_details = self._format_failure_details(test)
-                    # Limit the size of failure details to avoid API limits
                     if len(failure_details) > 2000:
                         failure_details = failure_details[:2000] + "\n\n... (truncated due to length)"
                     comment_body += failure_details
                 
                 comment_body += "\n"
             
-            # Ensure comment body is not too long (Jira has limits)
             if len(comment_body) > 32000:
                 comment_body = comment_body[:32000] + "\n\n... (truncated due to length)"
             
@@ -150,74 +140,60 @@ class JiraReporter:
             print(f"Failed to add comment to Jira issue: {str(e)}")
     
     def _format_failure_details(self, test):
-        """Format detailed failure information for a failed test, prioritizing logger comments."""
         failure_details = test.get('failure_details', {})
         logs = test.get('logs', {})
-        
+
         details = "\n*Failure Details:*\n"
-        
-        # Priority 1: Logger comments (most important - describes where failure occurred)
+
         logger_comments = self._extract_logger_comments(logs, failure_details)
         if logger_comments:
             details += "*Where the failure occurred:*\n"
             details += f"{logger_comments}\n\n"
-        
-        # Priority 2: Specific error information (assertion errors, exceptions)
+
         error_info = self._extract_specific_error(failure_details)
         if error_info:
             details += "*Specific Error:*\n"
             details += "{code:title=Error Details}\n"
             details += error_info
             details += "\n{code}\n\n"
-        
-        # Priority 3: Only add verbose logs if logger comments are not available or very short
+
         if not logger_comments or len(logger_comments) < 100:
             verbose_logs = self._extract_verbose_logs(logs)
             if verbose_logs:
                 details += "*Additional Context:*\n"
                 details += verbose_logs
-        
+
         return details
     
     def _extract_logger_comments(self, logs, failure_details):
         """Extract logger comments that describe where the failure occurred."""
         logger_comments = []
         
-        # Look for logger messages in captured logs
         if logs.get('captured_logs'):
             log_content = self._sanitize_text(logs['captured_logs'])
-            # Extract meaningful log messages (typically contain file names, line numbers, step descriptions)
             log_lines = log_content.split('\n')
             for line in log_lines:
-                # Look for lines that contain useful context about test execution
                 if any(keyword in line.lower() for keyword in ['step', 'scenario', 'feature', 'error', 'fail', 'assert']):
-                    # Clean up the log line and add it
                     clean_line = line.strip()
-                    if clean_line and len(clean_line) > 10:  # Avoid very short/empty lines
+                    if clean_line and len(clean_line) > 10:
                         logger_comments.append(clean_line)
-        
-        # Look for step-related information in other log sections
+
         for section_name, section_content in logs.items():
             if 'section_' in section_name and section_content:
                 content = self._sanitize_text(section_content)
                 if any(keyword in content.lower() for keyword in ['step', 'scenario', 'given', 'when', 'then']):
-                    # This likely contains BDD step information
-                    lines = content.split('\n')[:5]  # Take first few lines
+                    lines = content.split('\n')[:5]
                     for line in lines:
                         clean_line = line.strip()
                         if clean_line and len(clean_line) > 10:
                             logger_comments.append(clean_line)
-        
-        # Look for step information in failure details
+
         if failure_details.get('short_summary'):
             summary = self._sanitize_text(failure_details['short_summary'])
-            # Extract file and line information
             if any(indicator in summary for indicator in ['.py:', 'line', 'step_defs', 'features']):
                 logger_comments.append(f"Location: {summary}")
         
-        # Limit and format the logger comments
         if logger_comments:
-            # Remove duplicates while preserving order
             unique_comments = []
             seen = set()
             for comment in logger_comments:
@@ -225,10 +201,7 @@ class JiraReporter:
                     unique_comments.append(comment)
                     seen.add(comment)
             
-            # Limit to most relevant comments (max 5)
             relevant_comments = unique_comments[:5]
-            
-            # Format as bullet points
             formatted_comments = []
             for comment in relevant_comments:
                 if len(comment) > 200:

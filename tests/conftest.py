@@ -1,6 +1,3 @@
-"""
-Pytest configuration and Jira reporting.
-"""
 import os
 import tempfile
 import shutil
@@ -12,10 +9,9 @@ from selenium import webdriver
 from tests.browserconfig import browser_options, select_browser
 
 
-# Global temporary directory for screenshots during test session
 SCREENSHOT_DIR = tempfile.mkdtemp(prefix="bdd_screenshots_")
 
-# Load environment variables from .env file; default HEADLESS should be true when missing
+
 def ensure_default_environment():
     env_path = Path(__file__).parent.parent / '.env'
     default_env = {
@@ -23,33 +19,30 @@ def ensure_default_environment():
         'BROWSER': 'chrome'
     }
 
-    # Preserve user-provided values while enforcing defaults
     load_dotenv(dotenv_path=env_path, override=False)
 
     for key, value in default_env.items():
         if not os.getenv(key):
             os.environ[key] = value
 
+
 ensure_default_environment()
+
 
 @pytest.fixture(scope="function")
 def browser(request):
-    """Set up and tear down the browser for web tests."""
     temp_dir = tempfile.mkdtemp()
     driver = None
 
     try:
-        # Get the browser name and options
         browser_name = select_browser()
         options = browser_options(browser_name)
 
-        # Add common options
-        if browser_name.lower() != 'firefox':  # Firefox doesn't support these arguments
+        if browser_name.lower() != 'firefox':
             options.add_argument(f"--user-data-dir={temp_dir}")
             options.add_argument("--no-first-run")
             options.add_argument("--no-default-browser-check")
 
-        # Create the appropriate WebDriver instance
         if browser_name.lower() == 'chrome':
             driver = webdriver.Chrome(options=options)
             browser_info = 'Chrome'
@@ -62,7 +55,6 @@ def browser(request):
         else:
             raise ValueError(f"Unsupported browser: {browser_name}")
 
-        # Add browser info to test item's user properties for Jira reporting
         if hasattr(request.node, 'user_properties'):
             request.node.user_properties.append(('browser', browser_info))
 
@@ -72,74 +64,64 @@ def browser(request):
         yield driver
         driver.quit()
     finally:
-        # Clean up the temporary directory
         try:
             shutil.rmtree(temp_dir, ignore_errors=True)
-        except Exception as e:
-            logging.warning(f"Failed to clean up temporary directory {temp_dir}: {e}")
+        except Exception as error:
+            logging.warning(f"Failed to clean up temporary directory {temp_dir}: {error}")
 
 
-
-
-# Import JiraReporter only if credentials are available
 JIRA_ENABLED = all([
     os.getenv('JIRA_EMAIL'),
     os.getenv('JIRA_TOKEN'),
     os.getenv('JIRA_PROJECT_KEY')
 ])
 
+
 if JIRA_ENABLED:
     from .jira_reporter import JiraReporter, report_test_results
 
+
 def pytest_configure(config):
-    """Configure test settings."""
     config.option.markers = "jira: Mark tests that should be reported to Jira"
     config.option.junit_family = "xunit2"
 
-    # Configure logging to capture more details
     logging.basicConfig(
         level=logging.DEBUG,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
 
+
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
-    """Hook to capture test results for reporting."""
     outcome = yield
     rep = outcome.get_result()
 
-    # Store the result for later use
     if not hasattr(item, 'rep_call'):
         item.rep_call = rep
 
-    # If the test failed during the call phase, mark it for screenshot
     if rep.when == 'call' and rep.failed:
-        # Test failed, will be handled in terminal summary
         pass
 
+
 def pytest_terminal_summary(terminalreporter, exitstatus, config):
-    """Report test results to Jira after test run completes."""
     global SCREENSHOT_DIR
 
     if not JIRA_ENABLED:
         terminalreporter.write_line("\nJira reporting is disabled. Set JIRA_EMAIL, JIRA_TOKEN, and JIRA_PROJECT_KEY in .env to enable.")
         return
 
-    # Collect test results
     test_results = []
 
-    # Get browser information from the browserconfig
     try:
         browser_name = select_browser().title()
-        browser_info = f"{browser_name}"  # Simplified to just show the browser name
+        browser_info = f"{browser_name}"
         print(f"Using browser: {browser_info}")
-    except Exception as e:
-        print(f"Error getting browser info: {str(e)}")
+    except Exception as error:
+        print(f"Error getting browser info: {str(error)}")
         browser_info = "Unknown"
     
-    # Add passed tests
     for test in terminalreporter.stats.get('passed', []):
-        duration = getattr(test, 'duration', 0)  # Default to 0 if duration not available
+        duration = getattr(test, 'duration', 0)
         test_results.append({
             'name': test.nodeid.split('::')[-1],
             'status': 'PASS',
@@ -152,11 +134,9 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
             }
         })
     
-    # Add failed tests with detailed information
     for test in terminalreporter.stats.get('failed', []):
-        # Extract detailed failure information
         failure_info = _extract_failure_details(test)
-        duration = getattr(test, 'duration', 0)  # Default to 0 if duration not available
+        duration = getattr(test, 'duration', 0)
         
         test_results.append({
             'name': test.nodeid.split('::')[-1],
@@ -175,11 +155,9 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
             }
         })
     
-    # Add error tests with detailed information
     for test in terminalreporter.stats.get('error', []):
-        # Extract detailed error information
         error_info = _extract_failure_details(test)
-        duration = getattr(test, 'duration', 0)  # Default to 0 if duration not available
+        duration = getattr(test, 'duration', 0)
         
         test_results.append({
             'name': test.nodeid.split('::')[-1],
@@ -198,15 +176,12 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
             }
         })
     
-    # Report to Jira
     if test_results:
         try:
-            # Pass browser info to the report function
             result = report_test_results(test_results, browser_info=browser_info)
             if result:
                 terminalreporter.write_line("\nSuccessfully reported test results to Jira")
 
-                # Attach screenshots to the Jira issue
                 issue_key = result.get('key')
                 if issue_key:
                     from tests.jira_reporter import JiraReporter
@@ -221,12 +196,11 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
                             print(f"Attaching screenshot: {screenshot_path}")
                             success = reporter.attach_file(issue_key, screenshot_path, filename)
                             if success:
-                                # Remove the file after attaching
                                 try:
                                     os.remove(screenshot_path)
                                     print(f"Removed screenshot after attachment: {filename}")
-                                except Exception as e:
-                                    print(f"Failed to remove screenshot {filename}: {e}")
+                                except Exception as error:
+                                    print(f"Failed to remove screenshot {filename}: {error}")
                             else:
                                 print(f"Failed to attach screenshot: {filename}")
                     else:
@@ -234,20 +208,18 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
 
             else:
                 terminalreporter.write_line("\nFailed to report results to Jira")
-        except Exception as e:
-            terminalreporter.write_line(f"\nError reporting to Jira: {str(e)}", red=True)
+        except Exception as error:
+            terminalreporter.write_line(f"\nError reporting to Jira: {str(error)}", red=True)
     else:
         terminalreporter.write_line("\nNo test results to report to Jira")
 
-    # Clean up screenshot directory
     try:
         shutil.rmtree(SCREENSHOT_DIR, ignore_errors=True)
-    except Exception as e:
-        print(f"Failed to clean up screenshot directory {SCREENSHOT_DIR}: {e}")
+    except Exception as error:
+        print(f"Failed to clean up screenshot directory {SCREENSHOT_DIR}: {error}")
 
 
 def _extract_failure_details(test_report):
-    """Extract detailed failure information from a test report."""
     failure_info = {
         'short_summary': '',
         'long_summary': '',
@@ -256,26 +228,21 @@ def _extract_failure_details(test_report):
     }
     
     if hasattr(test_report, 'longrepr') and test_report.longrepr:
-        # Get the full failure representation
         failure_info['long_summary'] = str(test_report.longrepr)
         
-        # Try to extract specific parts
         if hasattr(test_report.longrepr, 'reprcrash'):
             failure_info['short_summary'] = str(test_report.longrepr.reprcrash)
         
-        # Extract traceback if available
         if hasattr(test_report.longrepr, 'reprtraceback'):
             failure_info['traceback'] = str(test_report.longrepr.reprtraceback)
         
-        # Look for assertion errors
         longrepr_str = str(test_report.longrepr)
         if 'AssertionError' in longrepr_str:
             lines = longrepr_str.split('\n')
-            for i, line in enumerate(lines):
+            for index, line in enumerate(lines):
                 if 'AssertionError' in line:
-                    # Get the assertion error and a few lines of context
-                    start = max(0, i-2)
-                    end = min(len(lines), i+3)
+                    start = max(0, index-2)
+                    end = min(len(lines), index+3)
                     failure_info['assertion_error'] = '\n'.join(lines[start:end])
                     break
     
@@ -283,14 +250,12 @@ def _extract_failure_details(test_report):
 
 
 def _capture_test_logs(test_report):
-    """Capture logs from a test execution."""
     logs = {
         'captured_logs': '',
         'captured_stdout': '',
         'captured_stderr': ''
     }
     
-    # Try to get captured logs from different sources
     if hasattr(test_report, 'caplog') and test_report.caplog:
         logs['captured_logs'] = test_report.caplog
     
@@ -300,7 +265,6 @@ def _capture_test_logs(test_report):
     if hasattr(test_report, 'capstderr') and test_report.capstderr:
         logs['captured_stderr'] = test_report.capstderr
     
-    # Try to get sections if available
     if hasattr(test_report, 'sections'):
         for section_name, section_content in test_report.sections:
             if 'log' in section_name.lower():

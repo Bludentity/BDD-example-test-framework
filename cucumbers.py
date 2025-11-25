@@ -1,9 +1,3 @@
-"""
-This module contains a simple class modelling a cucumber basket.
-Cucumbers can be added to the basket and removed from it.
-The basket has a limited capacity.
-"""
-
 from tests.basketconfig import basket_capacity
 
 class CucumberBasket:
