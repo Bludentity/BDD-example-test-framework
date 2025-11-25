@@ -96,6 +96,12 @@ pipenv run python -m pytest tests/step_defs/test_duckduckgo_steps.py -v
 - **PASSED/FAILED**: Test status with duration
 - **Jira Integration**: Automatic reporting if configured (creates issues with detailed failure info)
 
+### GitHub Actions
+Run tests automatically in the cloud:
+1. Go to the repository's **Actions** tab
+2. Select **"Run BDD Tests"** workflow
+3. Click **"Run workflow"** to execute all tests in a headless Chrome environment
+
 ## Project Structure
 
 ```
